@@ -1,0 +1,88 @@
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        void: '#0A0A0F',
+        surface: {
+          DEFAULT: '#111118',
+          raised: '#16161F',
+          overlay: '#1C1C28',
+          border: '#2A2A3D',
+        },
+        brand: {
+          DEFAULT: '#6C63FF',
+          dim: '#4F46E5',
+          glow: '#818CF8',
+          muted: '#3730A3',
+          subtle: 'rgba(108,99,255,0.12)',
+        },
+        success: {
+          DEFAULT: '#10B981',
+          dim: '#059669',
+          subtle: 'rgba(16,185,129,0.12)',
+        },
+        warn: {
+          DEFAULT: '#F59E0B',
+          dim: '#D97706',
+          subtle: 'rgba(245,158,11,0.12)',
+        },
+        danger: {
+          DEFAULT: '#F43F5E',
+          dim: '#E11D48',
+          subtle: 'rgba(244,63,94,0.12)',
+        },
+        ink: {
+          100: '#F8FAFC',
+          200: '#E2E8F0',
+          300: '#CBD5E1',
+          400: '#94A3B8',
+          500: '#64748B',
+          600: '#475569',
+        },
+      },
+      fontFamily: {
+        display: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'Menlo', 'monospace'],
+      },
+      keyframes: {
+        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        slideUp: { '0%': { opacity: '0', transform: 'translateY(12px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+        slideDown: { '0%': { opacity: '0', transform: 'translateY(-8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+        slideIn: { '0%': { opacity: '0', transform: 'translateX(-16px)' }, '100%': { opacity: '1', transform: 'translateX(0)' } },
+        shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+        ticker: { '0%': { transform: 'translateY(0)' }, '100%': { transform: 'translateY(-50%)' } },
+        pulse2: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.4' } },
+        spin: { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } },
+        toastIn: { '0%': { opacity: '0', transform: 'translateX(60px) scale(0.95)' }, '100%': { opacity: '1', transform: 'translateX(0) scale(1)' } },
+        toastOut: { '0%': { opacity: '1', transform: 'translateX(0)' }, '100%': { opacity: '0', transform: 'translateX(60px)' } },
+        modalIn: { '0%': { opacity: '0', transform: 'scale(0.96) translateY(-8px)' }, '100%': { opacity: '1', transform: 'scale(1) translateY(0)' } },
+        drawerIn: { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(0)' } },
+        blink: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0' } },
+        dotBounce: { '0%, 80%, 100%': { transform: 'scale(0)' }, '40%': { transform: 'scale(1)' } },
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.2s ease-out',
+        'slide-up': 'slideUp 0.25s ease-out',
+        'slide-down': 'slideDown 0.2s ease-out',
+        'slide-in': 'slideIn 0.25s ease-out',
+        'shimmer': 'shimmer 1.5s infinite',
+        'ticker': 'ticker 24s linear infinite',
+        'pulse2': 'pulse2 2s ease-in-out infinite',
+        'spin': 'spin 0.7s linear infinite',
+        'toast-in': 'toastIn 0.25s ease-out',
+        'modal-in': 'modalIn 0.2s ease-out',
+        'drawer-in': 'drawerIn 0.25s ease-out',
+        'blink': 'blink 1s step-end infinite',
+        'dot-1': 'dotBounce 1.2s ease-in-out 0s infinite',
+        'dot-2': 'dotBounce 1.2s ease-in-out 0.15s infinite',
+        'dot-3': 'dotBounce 1.2s ease-in-out 0.3s infinite',
+      },
+    },
+  },
+  plugins: [],
+}
