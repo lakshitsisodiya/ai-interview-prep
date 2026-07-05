@@ -1,13 +1,26 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-function getModel() {
-  const key = import.meta.env.VITE_GEMINI_API_KEY
-  if (!key) {
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+let genAI = null
+
+function getClient() {
+  if (!apiKey) {
     throw new Error(
       'Gemini API key not found.\n\nCreate a .env file in the project root with:\nVITE_GEMINI_API_KEY=your_key_here\n\nGet your key at https://aistudio.google.com/app/apikey'
     )
   }
-  return new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-2.0-flash' })
+  if (!genAI) genAI = new GoogleGenerativeAI(apiKey)
+  return genAI
+}
+
+function getModel({ maxOutputTokens = 2048 } = {}) {
+  return getClient().getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      maxOutputTokens,
+    },
+  })
 }
 
 function parseJSON(text) {
@@ -19,7 +32,6 @@ function parseJSON(text) {
   try {
     return JSON.parse(clean)
   } catch {
-    // Try to extract JSON object/array from response
     const match = clean.match(/\{[\s\S]*\}/)
     if (match) {
       try { return JSON.parse(match[0]) } catch {}
@@ -28,9 +40,24 @@ function parseJSON(text) {
   }
 }
 
+// Wraps every Gemini call: normalizes 429s, keeps everything else as-is
+async function callGemini(model, prompt) {
+  try {
+    const result = await model.generateContent(prompt)
+    return parseJSON(result.response.text())
+  } catch (err) {
+    if (err?.message?.includes('429') || err?.status === 429) {
+      throw new Error(
+        'Gemini free-tier quota exceeded for now. Wait about a minute before trying again.'
+      )
+    }
+    throw err
+  }
+}
+
 // ── 1. Question Generation ─────────────────────────────────────────────────
 export async function generateQuestions({ company, role, experience, interviewType }) {
-  const model = getModel()
+  const model = getModel({ maxOutputTokens: 4096 }) // larger cap: up to 16 structured questions
 
   const prompt = `You are a senior technical interviewer at ${company}.
 Generate interview questions for a ${role} candidate at ${experience} experience level.
@@ -54,15 +81,14 @@ Use this exact structure:
 }
 
 Rules:
-- Generate exactly: 6 technical, 4 hr, 3 behavioral, 3 company_specific questions
+- Default: 6 technical, 4 hr, 3 behavioral, 3 company_specific questions
 - If interviewType is "Technical": 10 technical, 1 hr, 1 behavioral, 3 company_specific
 - If interviewType is "HR": 2 technical, 6 hr, 4 behavioral, 3 company_specific
 - Match difficulty to ${experience} level
 - Make questions specific to ${company}'s actual interview style
 - For ${company}: reference their real products, culture, and known engineering practices`
 
-  const result = await model.generateContent(prompt)
-  const data = parseJSON(result.response.text())
+  const data = await callGemini(model, prompt)
 
   const all = [
     ...(data.technical || []),
@@ -76,7 +102,7 @@ Rules:
 
 // ── 2. Answer Generation ───────────────────────────────────────────────────
 export async function generateAnswer({ question, role, experience, company }) {
-  const model = getModel()
+  const model = getModel({ maxOutputTokens: 3072 })
 
   const prompt = `You are an expert ${role} helping a ${experience} candidate prepare for ${company}.
 Generate ideal interview answers for:
@@ -107,51 +133,12 @@ Return ONLY valid JSON — no markdown, no preamble:
   "followUpQuestions": ["follow-up 1", "follow-up 2"]
 }`
 
-  const result = await model.generateContent(prompt)
-  return parseJSON(result.response.text())
-}
-
-
-// ── 2. Answer Generation ───────────────────────────────────────────────────
-export async function generateAnswer({ question, role, experience, company }) {
-  const model = getModel()
-
-  const prompt = `You are an expert ${role} helping a ${experience} candidate prepare for ${company}.
-Generate ideal interview answers for:
-"${question}"
-
-Return ONLY valid JSON — no markdown, no preamble:
-{
-  "beginner": {
-    "answer": "Complete answer text...",
-    "keyPoints": ["point 1", "point 2", "point 3"],
-    "duration": "1-2 min"
-  },
-  "intermediate": {
-    "answer": "More detailed answer...",
-    "keyPoints": ["point 1", "point 2", "point 3"],
-    "codeExample": "// optional, only if relevant",
-    "duration": "2-3 min"
-  },
-  "expert": {
-    "answer": "Deep, nuanced answer with edge cases...",
-    "keyPoints": ["point 1", "point 2", "point 3"],
-    "codeExample": "// optional",
-    "deepDive": "Advanced concepts, trade-offs, production considerations...",
-    "duration": "3-5 min"
-  },
-  "tips": ["tip 1", "tip 2"],
-  "commonMistakes": ["mistake 1", "mistake 2"],
-  "followUpQuestions": ["follow-up 1", "follow-up 2"]
-}`
-
-  const result = await model.generateContent(prompt)
-  return parseJSON(result.response.text())
+  return callGemini(model, prompt)
 }
 
 // ── 3. Mock Interview Feedback ─────────────────────────────────────────────
 export async function generateFeedback({ question, userAnswer, role, experience, company }) {
-  const model = getModel()
+  const model = getModel({ maxOutputTokens: 1536 })
 
   const prompt = `You are a strict but constructive interviewer at ${company} evaluating a ${role} (${experience}) candidate.
 
@@ -180,13 +167,12 @@ Rules:
 - improvedAnswer must be a full, usable answer
 - Calibrate scoring to ${experience} level`
 
-  const result = await model.generateContent(prompt)
-  return parseJSON(result.response.text())
+  return callGemini(model, prompt)
 }
 
 // ── 4. Study Plan Generation ───────────────────────────────────────────────
 export async function generateStudyPlan({ company, role, days }) {
-  const model = getModel()
+  const model = getModel({ maxOutputTokens: 4096 })
 
   const prompt = `You are a career coach creating a ${days}-day interview prep plan for a ${role} role at ${company}.
 
@@ -239,22 +225,21 @@ Rules:
 - Prioritize topics ${company} is known to test heavily
 - Be specific and actionable`
 
-  const result = await model.generateContent(prompt)
-  return parseJSON(result.response.text())
+  return callGemini(model, prompt)
 }
 
 // ── 5. Next Mock Interview Question ───────────────────────────────────────
 export async function getNextQuestion({ company, role, experience, previousQuestions, history }) {
-  const model = getModel()
+  const model = getModel({ maxOutputTokens: 512 })
 
-  const historySnippet = history
+  const historySnippet = (history || [])
     .filter(m => m.role === 'ai' || m.role === 'user')
     .slice(-6)
     .map(m => `${m.role === 'ai' ? 'Interviewer' : 'Candidate'}: ${m.content}`)
     .join('\n')
 
   const prompt = `You are a ${company} interviewer conducting a ${role} interview (${experience} level).
-Previous questions asked: ${previousQuestions.length ? previousQuestions.join(' | ') : 'none yet'}
+Previous questions asked: ${previousQuestions?.length ? previousQuestions.join(' | ') : 'none yet'}
 
 Recent conversation:
 ${historySnippet || 'Interview just started.'}
@@ -272,6 +257,5 @@ Return ONLY valid JSON — no markdown, no preamble:
   "topic": "Topic name"
 }`
 
-  const result = await model.generateContent(prompt)
-  return parseJSON(result.response.text())
+  return callGemini(model, prompt)
 }
